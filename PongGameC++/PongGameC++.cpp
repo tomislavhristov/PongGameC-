@@ -1,6 +1,4 @@
-// PongGameC++.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
-#include <wiringPi.h> 
+﻿#include <wiringPi.h>
 #include <wiringPiI2C.h>
 #include <iostream>
 #include <thread>
@@ -11,7 +9,7 @@
 
 using namespace std::chrono_literals;
 
-// OLED ?????????
+// OLED настройки
 constexpr int OLED_ADDR = 0x3C;
 constexpr int OLED_WIDTH = 128;
 constexpr int OLED_HEIGHT = 64;
@@ -19,11 +17,11 @@ constexpr int PADDLE_HEIGHT = 16;
 constexpr int PADDLE_WIDTH = 4;
 constexpr int BALL_SIZE = 4;
 
-// ????? GPIO ?????? (WiringPi ?????????)
-constexpr int BTN1_UP = 5;   // GPIO 24
-constexpr int BTN1_DOWN = 4; // GPIO 23
-constexpr int BTN2_UP = 3;   // GPIO 22
-constexpr int BTN2_DOWN = 2; // GPIO 27
+// Бутон GPIO пинове (WiringPi номерация)
+constexpr int BTN1_UP = 5;    // GPIO 24
+constexpr int BTN1_DOWN = 4;  // GPIO 23
+constexpr int BTN2_UP = 21;   // GPIO 5
+constexpr int BTN2_DOWN = 2;  // GPIO 27
 
 int fd;
 int paddle1_y = OLED_HEIGHT / 2 - PADDLE_HEIGHT / 2;
@@ -36,7 +34,7 @@ int score1 = 0, score2 = 0;
 std::atomic<bool> running(true);
 std::mutex game_mutex;
 uint8_t buffer[OLED_WIDTH * OLED_HEIGHT / 8];
-unsigned long lastDebounce[8] = { 0 };
+unsigned long lastDebounce[4] = { 0 };
 
 void ssd1306_command(uint8_t c) {
     wiringPiI2CWriteReg8(fd, 0x00, c);
@@ -94,9 +92,9 @@ void draw_game() {
     }
 }
 
-// ??????a ? debounce: ?????? HIGH, ?????? ??????? ??? ????????? ????? HIGH
+// debounce за бутон - търсим LOW (натиснат бутон)
 bool debounce(int pin, int idx) {
-    if (digitalRead(pin) == HIGH) {
+    if (digitalRead(pin) == LOW) { // бутонът е натиснат
         unsigned long now = millis();
         if (now - lastDebounce[idx] > 120) {
             lastDebounce[idx] = now;
@@ -171,23 +169,23 @@ void setup_gpio() {
     pinMode(BTN2_UP, INPUT);
     pinMode(BTN2_DOWN, INPUT);
 
-    // ?????????? ?????????? pull-up/down ?????????, ?????? ???? ??????
-    pullUpDnControl(BTN1_UP, PUD_OFF);
-    pullUpDnControl(BTN1_DOWN, PUD_OFF);
-    pullUpDnControl(BTN2_UP, PUD_OFF);
-    pullUpDnControl(BTN2_DOWN, PUD_OFF);
+    // Включваме вътрешните pull-up резистори, защото бутоните са към GND
+    pullUpDnControl(BTN1_UP, PUD_UP);
+    pullUpDnControl(BTN1_DOWN, PUD_UP);
+    pullUpDnControl(BTN2_UP, PUD_UP);
+    pullUpDnControl(BTN2_DOWN, PUD_UP);
 }
 
 void handle_sigint(int) {
     running = false;
-    std::cout << "\n???????...\n";
+    std::cout << "\nСпиране...\n";
 }
 
 int main() {
     signal(SIGINT, handle_sigint);
     fd = wiringPiI2CSetup(OLED_ADDR);
     if (fd < 0) {
-        std::cerr << "?????? ??? I2C\n";
+        std::cerr << "Грешка при I2C\n";
         return 1;
     }
     ssd1306_init();
